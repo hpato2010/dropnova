@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es-CL"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow"><title>dropnova | Recuperar acceso</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#f5f6f9;color:#213047;font:16px system-ui,-apple-system,Arial,sans-serif}header{background:#192e48;color:white;padding:23px max(20px,5vw);font-size:23px;font-weight:800}header b{color:#ff876b}main{max-width:460px;margin:65px auto;padding:0 15px}section{background:white;border:1px solid #e3e8ee;border-radius:16px;padding:26px;box-shadow:0 3px 18px #15283e08}h1{margin-top:0;font-size:26px}p{line-height:1.5;color:#627086}label{display:block;margin:14px 0 6px;font-weight:650}input{display:block;width:100%;padding:12px;border-radius:9px;border:1px solid #bac6d4;font:inherit}button{margin-top:20px;cursor:pointer;border:0;border-radius:9px;background:#ed7058;color:white;font:inherit;font-weight:700;padding:12px 16px}button:disabled{opacity:.6}a{color:#213e69}#status{margin-top:14px;min-height:24px}#status.error{color:#af3029}#status.ok{color:#167044}.hidden{display:none}</style></head><body>
+<header>drop<b>nova</b> / Administración</header><main><section><h1>Recuperar contraseña</h1><p id="intro">Solicita un enlace de recuperación para tu cuenta administrativa.</p>
+<form id="request"><label for="email">Correo electrónico</label><input type="email" id="email" required autocomplete="email"><button id="send">Enviar enlace</button></form>
+<form id="change" class="hidden"><label for="newpass">Nueva contraseña</label><input type="password" id="newpass" required minlength="12" maxlength="128" autocomplete="new-password"><label for="confirm">Confirmar contraseña</label><input type="password" id="confirm" required minlength="12" maxlength="128" autocomplete="new-password"><button id="save">Guardar contraseña</button></form>
+<p id="status" role="status" aria-live="polite"></p><p><a href="/admin">Volver al acceso administrativo</a></p></section></main>
+<script type="module">
+const $=x=>document.getElementById(x),status=(message,type='')=>{$('status').textContent=message;$('status').className=type};
+let client=null, recovery=false;
+try{
+  const r=await fetch('/api/auth-config',{cache:'no-store'});
+  const cfg=await r.json();if(!r.ok)throw Error(cfg.error||'La tienda no está configurada para recuperación.');
+  const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+  client=createClient(cfg.url,cfg.publicKey,{auth:{detectSessionInUrl:true,persistSession:false,autoRefreshToken:false,flowType:'implicit'}});
+  const u=new URL(location.href);const hash=new URLSearchParams(u.hash.replace(/^#/,''));
+  if(u.searchParams.has('error')||hash.has('error')){
+    status('El enlace es inválido o ha caducado. Solicita uno nuevo desde aquí.','error');
+    history.replaceState({},'',location.pathname);
+  }
+  const showChange=()=>{recovery=true;$('request').classList.add('hidden');$('change').classList.remove('hidden');$('intro').textContent='Introduce una nueva contraseña para tu cuenta.';status('Enlace verificado. Ya puedes cambiar la contraseña.','ok');history.replaceState({},'',location.pathname)};
+  client.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'&&session)showChange()});
+  // Recuperación por enlace implícito: el SDK procesa el token de la URL.
+  if(hash.get('type')==='recovery'){
+    const {data,error}=await client.auth.getSession();
+    if(!error&&data.session)showChange();
+    else if(!recovery)status('No se pudo validar el enlace. Solicita uno nuevo.','error');
+  }
+}catch(e){status(e.message||'No se pudo iniciar la recuperación.','error')}
+$('request').addEventListener('submit',async e=>{
+  e.preventDefault();if(!client)return status('No está disponible la conexión de autenticación.','error');
+  $('send').disabled=true;status('Solicitando enlace...');
+  try{
+    const {error}=await client.auth.resetPasswordForEmail($('email').value.trim(),{redirectTo:location.origin+'/recuperar'});
+    if(error)throw error;
+    status('Si el correo corresponde a una cuenta válida y el servicio de correo está disponible, recibirás un enlace. Revisa también Spam.','ok');
+  }catch(err){status('No se pudo enviar el correo: '+(err.message||'Error desconocido'),'error')}
+  finally{$('send').disabled=false}
+});
+$('change').addEventListener('submit',async e=>{
+  e.preventDefault();if(!client||!recovery)return status('Solicita primero un enlace válido.','error');
+  const password=$('newpass').value;
+  if(password.length<12||password!==$('confirm').value)return status('Las contraseñas deben coincidir y tener al menos 12 caracteres.','error');
+  $('save').disabled=true;
+  try{
+    const {error}=await client.auth.updateUser({password});if(error)throw error;
+    await client.auth.signOut();$('change').classList.add('hidden');$('intro').textContent='Contraseña actualizada.';
+    status('Contraseña guardada. Ya puedes iniciar sesión desde Administración.','ok');
+  }catch(err){status('No se pudo actualizar la contraseña: '+(err.message||'Error desconocido'),'error')}
+  finally{$('save').disabled=false}
+});
+</script></body></html>
