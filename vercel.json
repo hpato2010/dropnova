@@ -19,6 +19,10 @@
     {
       "source": "/p/:slug",
       "destination": "/producto.html"
+    },
+    {
+      "source": "/politicas",
+      "destination": "/politicas.html"
     }
   ],
   "headers": [
@@ -60,41 +64,6 @@
           "value": "noindex, nofollow"
         }
       ]
-    }
-  ],
-  "redirects": [
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "dropnova.cl"
-        }
-      ],
-      "destination": "/proximamente",
-      "permanent": false
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.dropnova.cl"
-        }
-      ],
-      "destination": "/proximamente",
-      "permanent": false
-    },
-    {
-      "source": "/index.html",
-      "has": [
-        {
-          "type": "host",
-          "value": "(?:www\\.)?dropnova\\.cl"
-        }
-      ],
-      "destination": "/proximamente",
-      "permanent": false
     }
   ]
 }
