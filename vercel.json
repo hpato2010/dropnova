@@ -15,6 +15,10 @@
     {
       "source": "/proximamente",
       "destination": "/proximamente.html"
+    },
+    {
+      "source": "/p/:slug",
+      "destination": "/producto.html"
     }
   ],
   "headers": [
